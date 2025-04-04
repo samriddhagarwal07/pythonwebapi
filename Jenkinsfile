@@ -1,70 +1,59 @@
 pipeline {
     agent any
+
+    environment {
+        AZURE_CREDENTIALS_ID = 'azure-service-principal'
+        RESOURCE_GROUP = 'rg-jenkins'
+        APP_SERVICE_NAME = 'webapijenkinssamriddh457'
+    }
+
     stages {
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/samriddhagarwal07/pythonwebapi.git'
+                git branch: 'main', url: 'https://github.com/naitikjain25/python-azure-app.git'
             }
         }
 
-        stage('Build') {
+        stage('Set Up Python Environment') {
             steps {
-                script {
-                    if (isUnix()) {
-                        // Example Unix build command (Replace with actual commands)
-                        sh 'echo "Building the project on a Unix system"'
-                    } else {
-                        // Example Windows build command (Replace with actual commands)
-                        bat 'echo "Building the project on a Windows system"'
-                    }
-                }
+                bat 'python -m venv venv'
+                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install --upgrade pip'
+                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install -r requirements.txt'
+                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install pytest'
             }
         }
 
-        stage('Publish') {
+        stage('Run Tests') {
             steps {
-                script {
-                    if (isUnix()) {
-                        // Example Unix publish command (Replace with actual commands)
-                        sh 'echo "Publishing on Unix"'
-                    } else {
-                        // Example Windows publish command (Replace with actual commands)
-                        bat 'echo "Publishing on Windows"'
-                    }
-                }
+                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pytest'
             }
         }
 
-        stage('Deploy to Azure') {
+        stage('Deploy') {
             steps {
-                script {
-                    // Use the Azure Service Principal credentials binding
-                    withCredentials([azureServicePrincipal(credentialsId: 'azure-service-principal')]) {
-                        def clientId = env.AZURE_CLIENT_ID
-                        def clientSecret = env.AZURE_CLIENT_SECRET
-                        def tenantId = env.AZURE_TENANT_ID
+                withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
+                    bat '''
+                    if exist publish (rmdir /s /q publish)
+                    mkdir publish
 
-                        // Now deploy to Azure with these credentials
-                        if (isUnix()) {
-                            // Unix specific commands
-                            sh """
-                            echo "Logging into Azure..."
-                            az login --service-principal -u $clientId -p $clientSecret --tenant $tenantId
-                            echo "Deploying to Azure from Unix..."
-                            az webapp deploy --resource-group myResourceGroup --name myWebApp --src-path ./dist
-                            """
-                        } else {
-                            // Windows specific commands
-                            bat """
-                            echo "Logging into Azure..."
-                            az login --service-principal -u $clientId -p $clientSecret --tenant $tenantId
-                            echo "Deploying to Azure from Windows..."
-                            az webapp deploy --resource-group myResourceGroup --name myWebApp --src-path .\\dist
-                            """
-                        }
-                    }
+                    :: Copy .py files and requirements.txt to publish folder
+                    for %%f in (*.py) do copy "%%f" publish\\
+                    if exist requirements.txt copy requirements.txt publish\\
+                    '''
+                    bat 'az login --service-principal -u %AZURE_CLIENT_ID% -p %AZURE_CLIENT_SECRET% --tenant %AZURE_TENANT_ID%'
+                    bat 'powershell Compress-Archive -Path ./publish/* -DestinationPath ./publish.zip -Force'
+                    bat 'az webapp deploy --resource-group %RESOURCE_GROUP% --name %APP_SERVICE_NAME% --src-path ./publish.zip --type zip'
                 }
             }
+        }
+    }
+
+    post {
+        failure {
+            echo 'Deployment Failed!'
+        }
+        success {
+            echo 'Deployment Successful!'
         }
     }
 }
