@@ -1,54 +1,60 @@
 pipeline {
     agent any
+
     environment {
-        AZURE_CREDENTIALS = credentials('azure-service-principal')
+        AZURE_CREDENTIALS_ID = 'azure-service-principal'
+        RESOURCE_GROUP = 'rg-jenkins'
+        APP_SERVICE_NAME = 'webapijenkinsnaitik457'
     }
+
     stages {
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/samriddhagarwal07/pythonwebapi.git'
-            }
-        }
-        stage('Build') {
-            steps {
-                script {
-                    if (isUnix()) {
-                        // Run shell commands if on a Unix-based system (Linux/macOS)
-                        sh 'echo "Building the project on a Unix system"'
-                    } else {
-                        // Run batch commands if on Windows
-                        bat 'echo "Building the project on a Windows system"'
-                    }
-                }
+                git branch: 'main', url: 'https://github.com/naitikjain25/python-azure-app.git'
             }
         }
 
-        stage('Publish') {
+        stage('Set Up Python Environment') {
             steps {
-                script {
-                    if (isUnix()) {
-                        // Example Unix command
-                        sh 'echo "Publishing on Unix"'
-                    } else {
-                        // Example Windows command
-                        bat 'echo "Publishing on Windows"'
-                    }
-                }
+                bat '"C:\\Users\\NAITIK JAIN\\AppData\\Local\\Programs\\Python\\Python312\\python.exe" -m venv venv'
+                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install --upgrade pip'
+                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install -r requirements.txt'
+                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install pytest'
             }
         }
 
-        stage('Deploy to Azure') {
+        stage('Run Tests') {
             steps {
-                script {
-                    if (isUnix()) {
-                        // Example Unix command for deployment
-                        sh 'echo "Deploying to Azure from Unix"'
-                    } else {
-                        // Example Windows command for deployment
-                        bat 'echo "Deploying to Azure from Windows"'
-                    }
+                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pytest'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
+                    bat '''
+                    if exist publish (rmdir /s /q publish)
+                    mkdir publish
+
+                    :: Copy .py files and requirements.txt to publish folder
+                    for %%f in (*.py) do copy "%%f" publish\\
+                    if exist requirements.txt copy requirements.txt publish\\
+                    '''
+                    bat 'az login --service-principal -u %AZURE_CLIENT_ID% -p %AZURE_CLIENT_SECRET% --tenant %AZURE_TENANT_ID%'
+                    bat 'powershell Compress-Archive -Path ./publish/* -DestinationPath ./publish.zip -Force'
+                    bat 'az webapp deploy --resource-group %RESOURCE_GROUP% --name %APP_SERVICE_NAME% --src-path ./publish.zip --type zip'
                 }
             }
+        }
+    }
+
+    post {
+        failure {
+            echo 'Deployment Failed!'
+        }
+        success {
+            echo 'Deployment Successful!'
         }
     }
 }
+Jenkinsfile
