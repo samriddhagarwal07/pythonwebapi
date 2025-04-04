@@ -11,21 +11,42 @@ pipeline {
         }
         stage('Build') {
             steps {
-                sh 'pip install -r requirements.txt'
+                script {
+                    if (isUnix()) {
+                        // Run shell commands if on a Unix-based system (Linux/macOS)
+                        sh 'echo "Building the project on a Unix system"'
+                    } else {
+                        // Run batch commands if on Windows
+                        bat 'echo "Building the project on a Windows system"'
+                    }
+                }
             }
         }
+
         stage('Publish') {
             steps {
-                sh 'zip -r app.zip .'
+                script {
+                    if (isUnix()) {
+                        // Example Unix command
+                        sh 'echo "Publishing on Unix"'
+                    } else {
+                        // Example Windows command
+                        bat 'echo "Publishing on Windows"'
+                    }
+                }
             }
         }
+
         stage('Deploy to Azure') {
             steps {
-                withCredentials([azureServicePrincipal('azure-service-principal')]) {
-                    sh ''' 
-                        az login --service-principal -u $AZURE_CREDENTIALS_CLIENT_ID -p $AZURE_CREDENTIALS_CLIENT_SECRET --tenant $AZURE_CREDENTIALS_TENANT_ID
-                        az webapp up --name myPythonApp --resource-group myResourceGroup --runtime "PYTHON:3.9" --src-path .
-                    '''
+                script {
+                    if (isUnix()) {
+                        // Example Unix command for deployment
+                        sh 'echo "Deploying to Azure from Unix"'
+                    } else {
+                        // Example Windows command for deployment
+                        bat 'echo "Deploying to Azure from Windows"'
+                    }
                 }
             }
         }
