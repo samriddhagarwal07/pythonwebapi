@@ -1,60 +1,68 @@
 pipeline {
     agent any
-
     environment {
-        AZURE_CREDENTIALS_ID = 'azure-service-principal'
-        RESOURCE_GROUP = 'rg-jenkins'
-        APP_SERVICE_NAME = 'webapijenkinsnaitik457'
+        AZURE_CREDENTIALS = credentials('azure-service-principal')
     }
-
     stages {
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/naitikjain25/python-azure-app.git'
+                git branch: 'main', url: 'https://github.com/samriddhagarwal07/pythonwebapi.git'
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        // Example Unix build command (Replace with actual commands)
+                        sh 'echo "Building the project on a Unix system"'
+                    } else {
+                        // Example Windows build command (Replace with actual commands)
+                        bat 'echo "Building the project on a Windows system"'
+                    }
+                }
             }
         }
 
-        stage('Set Up Python Environment') {
+        stage('Publish') {
             steps {
-                bat '"C:\\Users\\NAITIK JAIN\\AppData\\Local\\Programs\\Python\\Python312\\python.exe" -m venv venv'
-                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install --upgrade pip'
-                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install -r requirements.txt'
-                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pip install pytest'
+                script {
+                    if (isUnix()) {
+                        // Example Unix publish command (Replace with actual commands)
+                        sh 'echo "Publishing on Unix"'
+                    } else {
+                        // Example Windows publish command (Replace with actual commands)
+                        bat 'echo "Publishing on Windows"'
+                    }
+                }
             }
         }
 
-        stage('Run Tests') {
+        stage('Deploy to Azure') {
             steps {
-                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pytest'
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
-                    bat '''
-                    if exist publish (rmdir /s /q publish)
-                    mkdir publish
-
-                    :: Copy .py files and requirements.txt to publish folder
-                    for %%f in (*.py) do copy "%%f" publish\\
-                    if exist requirements.txt copy requirements.txt publish\\
-                    '''
-                    bat 'az login --service-principal -u %AZURE_CLIENT_ID% -p %AZURE_CLIENT_SECRET% --tenant %AZURE_TENANT_ID%'
-                    bat 'powershell Compress-Archive -Path ./publish/* -DestinationPath ./publish.zip -Force'
-                    bat 'az webapp deploy --resource-group %RESOURCE_GROUP% --name %APP_SERVICE_NAME% --src-path ./publish.zip --type zip'
+                script {
+                    // Authenticate to Azure using the service principal credentials
+                    withCredentials([azureServicePrincipal(credentialsId: 'azure-service-principal')]) {
+                        if (isUnix()) {
+                            // Example Unix command to login and deploy to Azure
+                            sh '''
+                            echo "Logging into Azure..."
+                            az login --service-principal -u $AZURE_CREDENTIALS_USR -p $AZURE_CREDENTIALS_PSW --tenant $AZURE_CREDENTIALS_TENANT
+                            echo "Deploying to Azure from Unix..."
+                            az webapp deploy --resource-group myResourceGroup --name myWebApp --src-path ./dist
+                            '''
+                        } else {
+                            // Example Windows command to login and deploy to Azure
+                            bat '''
+                            echo "Logging into Azure..."
+                            az login --service-principal -u %AZURE_CREDENTIALS_USR% -p %AZURE_CREDENTIALS_PSW% --tenant %AZURE_CREDENTIALS_TENANT%
+                            echo "Deploying to Azure from Windows..."
+                            az webapp deploy --resource-group myResourceGroup --name myWebApp --src-path .\\dist
+                            '''
+                        }
+                    }
                 }
             }
         }
     }
-
-    post {
-        failure {
-            echo 'Deployment Failed!'
-        }
-        success {
-            echo 'Deployment Successful!'
-        }
-    }
 }
-Jenkinsfile
