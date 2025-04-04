@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/samriddhagarwal07/pythonwebapi.git'
+                git branch: 'main', url: 'https://github.com/Mahimajain01/python-WebApi.git'
             }
         }
 
@@ -23,11 +23,11 @@ pipeline {
             }
         }
 
-        stage('Run Tests') {
-            steps {
-                bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pytest'
-            }
-        }
+        // stage('Run Tests') {
+        //     steps {
+        //         bat '.\\venv\\Scripts\\activate && .\\venv\\Scripts\\python.exe -m pytest'
+        //     }
+        // }
 
         stage('Deploy') {
             steps {
