@@ -9,7 +9,7 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/samriddhagarwal07/pythonwebapi.git'
             }
         }
-        
+
         stage('Build') {
             steps {
                 script {
@@ -41,24 +41,31 @@ pipeline {
         stage('Deploy to Azure') {
             steps {
                 script {
-                    // Authenticate to Azure using the service principal credentials
-                    withCredentials([azureServicePrincipal(credentialsId: 'azure-service-principal')]) {
+                    // Ensure that credentials are injected correctly
+                    withCredentials([string(credentialsId: 'azure-service-principal', variable: 'AZURE_CREDENTIALS_JSON')]) {
+                        def azureCredentials = readJSON text: AZURE_CREDENTIALS_JSON
+                        
+                        // Ensure correct credentials and tenant
+                        def clientId = azureCredentials.clientId
+                        def clientSecret = azureCredentials.clientSecret
+                        def tenantId = azureCredentials.tenantId
+                        
                         if (isUnix()) {
                             // Example Unix command to login and deploy to Azure
-                            sh '''
+                            sh """
                             echo "Logging into Azure..."
-                            az login --service-principal -u $AZURE_CREDENTIALS_USR -p $AZURE_CREDENTIALS_PSW --tenant $AZURE_CREDENTIALS_TENANT
+                            az login --service-principal -u $clientId -p $clientSecret --tenant $tenantId
                             echo "Deploying to Azure from Unix..."
                             az webapp deploy --resource-group myResourceGroup --name myWebApp --src-path ./dist
-                            '''
+                            """
                         } else {
                             // Example Windows command to login and deploy to Azure
-                            bat '''
+                            bat """
                             echo "Logging into Azure..."
-                            az login --service-principal -u %AZURE_CREDENTIALS_USR% -p %AZURE_CREDENTIALS_PSW% --tenant %AZURE_CREDENTIALS_TENANT%
+                            az login --service-principal -u $clientId -p $clientSecret --tenant $tenantId
                             echo "Deploying to Azure from Windows..."
                             az webapp deploy --resource-group myResourceGroup --name myWebApp --src-path .\\dist
-                            '''
+                            """
                         }
                     }
                 }
