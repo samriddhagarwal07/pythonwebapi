@@ -6,7 +6,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/samriddhagarwal07/pythonwebapi.git'
+                git branch: 'main', url: 'https://github.com/samriddhagarwal07/pythonwebapi.git'
             }
         }
         stage('Build') {
