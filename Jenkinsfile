@@ -1,8 +1,5 @@
 pipeline {
     agent any
-    environment {
-        AZURE_CREDENTIALS = credentials('azure-service-principal')
-    }
     stages {
         stage('Checkout') {
             steps {
@@ -41,17 +38,15 @@ pipeline {
         stage('Deploy to Azure') {
             steps {
                 script {
-                    // Ensure that credentials are injected correctly
-                    withCredentials([string(credentialsId: 'azure-service-principal', variable: 'AZURE_CREDENTIALS_JSON')]) {
-                        def azureCredentials = readJSON text: AZURE_CREDENTIALS_JSON
-                        
-                        // Ensure correct credentials and tenant
-                        def clientId = azureCredentials.clientId
-                        def clientSecret = azureCredentials.clientSecret
-                        def tenantId = azureCredentials.tenantId
-                        
+                    // Use the Azure Service Principal credentials binding
+                    withCredentials([azureServicePrincipal(credentialsId: 'azure-service-principal')]) {
+                        def clientId = env.AZURE_CLIENT_ID
+                        def clientSecret = env.AZURE_CLIENT_SECRET
+                        def tenantId = env.AZURE_TENANT_ID
+
+                        // Now deploy to Azure with these credentials
                         if (isUnix()) {
-                            // Example Unix command to login and deploy to Azure
+                            // Unix specific commands
                             sh """
                             echo "Logging into Azure..."
                             az login --service-principal -u $clientId -p $clientSecret --tenant $tenantId
@@ -59,7 +54,7 @@ pipeline {
                             az webapp deploy --resource-group myResourceGroup --name myWebApp --src-path ./dist
                             """
                         } else {
-                            // Example Windows command to login and deploy to Azure
+                            // Windows specific commands
                             bat """
                             echo "Logging into Azure..."
                             az login --service-principal -u $clientId -p $clientSecret --tenant $tenantId
